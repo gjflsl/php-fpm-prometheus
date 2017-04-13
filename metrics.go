@@ -65,7 +65,7 @@ func (m *Metrics) populateFromMatches(matches [][]string) {
 	}
 }
 
-func (m *Metrics) WriteTo(w io.Writer) {
+func (m *Metrics) WriteTo(w io.Writer, fcgi_addr string) {
 	typ := reflect.TypeOf(*m)
 	val := reflect.ValueOf(*m)
 	buf := &bytes.Buffer{}
@@ -74,8 +74,8 @@ func (m *Metrics) WriteTo(w io.Writer) {
 		name := field.Tag.Get("name")
 		buf.WriteString(fmt.Sprintf("# HELP %s %s\n", name, field.Tag.Get("help")))
 		buf.WriteString(fmt.Sprintf("# TYPE %s %s\n", name, field.Tag.Get("type")))
-		buf.WriteString(fmt.Sprintf("%s %d\n", name, val.Field(i).Int()))
-	}
+		buf.WriteString(fmt.Sprintf("php_fpm{key=\"%s\",fgci_addr=\"%s\"} %d\n", name, fcgi_addr, val.Field(i).Int()))
 
+	}
 	io.Copy(w, buf)
 }
