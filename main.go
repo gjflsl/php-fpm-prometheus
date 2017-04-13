@@ -2,13 +2,15 @@ package main
 
 import (
 	"flag"
-	"bytes"
 	"io/ioutil"
 	"log"
 	"regexp"
 	"github.com/tomasen/fcgi_client"
 	"fmt"
+	"os"
+	"bufio"
 	"strings"
+	"bytes"
 )
 
 var (
@@ -37,20 +39,17 @@ func GetPHPStatus() (body []byte, err error) {
 	return body, err
 }
 
-func main() {
-	phpAddr := flag.String("php-fpm-addr", "", "PHP-FPM address tcp://127.0.0.0.1:900 or unix:/path/to/unix/socket")
-	flag.Parse()
-
-	if *phpAddr == "" {
+func PrintPHPStatus(phpAddr string) {
+	if phpAddr == "" {
 		log.Fatal("The php-fpm-addr flag is required.")
-	} else if strings.Contains(*phpAddr, "tcp://") {
+	} else if strings.Contains(phpAddr, "tcp://") {
 		FCGI_PROT = "tcp"
-		FCGI_ADDR = strings.Replace(*phpAddr, "tcp://", "", 1)
-	} else if strings.Contains(*phpAddr, "unix:") {
+		FCGI_ADDR = strings.Replace(phpAddr, "tcp://", "", 1)
+	} else if strings.Contains(phpAddr, "unix:") {
 		FCGI_PROT = "unix"
-		FCGI_ADDR = strings.Replace(*phpAddr, "unix:", "", 1)
+		FCGI_ADDR = strings.Replace(phpAddr, "unix:", "", 1)
 	} else {
-		log.Fatal("The php-fpm-addr must like tcp://127.0.0.0.1:900 or unix:/path/to/unix/socket")
+		log.Fatal("The php-fpm-addr must like tcp://127.0.0.0.1:9001 or unix:/path/to/unix/socket")
 	}
 
 	var w bytes.Buffer
@@ -63,5 +62,31 @@ func main() {
 		NewMetricsFromMatches(matches).WriteTo(&w, FCGI_ADDR)
 	}
 	fmt.Println(w.String())
+
+}
+
+func main() {
+	filePath := flag.String("php-fpm-list", "", "PHP-FPM list file path")
+	flag.Parse()
+
+	if *filePath == "" {
+		log.Fatal("The php-fpm-list flag is required.")
+	}
+
+	file, err := os.Open(*filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		PrintPHPStatus(scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
 }
 
